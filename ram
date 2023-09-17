@@ -1,0 +1,55 @@
+#main.py file
+import os
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def hello_world():
+    name = os.environ.get("NAME", "World")
+    return "Hello {}!".format(name)
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
+	
+#Dockerfile
+FROM python:3.9-slim
+RUN pip install flask
+WORKDIR /myweb
+COPY main.py /myweb/main.py
+CMD ["python", "main.py"]
+
+
+#cloudbuild.yaml
+
+steps:
+- name: 'gcr.io/cloud-builders/git'
+  args: ['clone', 'https://source.developers.google.com/p/project_id/r/cicd-gke']
+
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'gcr.io/${PROJECT_ID}/${_IMAGE_NAME}:$SHORT_SHA', '.']
+
+- name: 'gcr.io/cloud-builders/docker' 
+  args: ['push', 'gcr.io/${PROJECT_ID}/${_IMAGE_NAME}:$SHORT_SHA']
+
+- name: 'gcr.io/cloud-builders/kubectl'
+  args: [
+    'set',
+    'image',
+    'deployment/cicd', # Workload/deployment name should include 'deployment/' prefix
+    'gke-image-sha256-1=gcr.io/${PROJECT_ID}/${_IMAGE_NAME}:$SHORT_SHA'
+  ]
+  env:
+  - 'CLOUDSDK_COMPUTE_ZONE=Zone_name' # Corrected the typo here
+  - 'CLOUDSDK_CONTAINER_CLUSTER=cicd-cluster' # Corrected the typo here
+
+substitutions:
+  _IMAGE_NAME: cicd-image
+  _SHORT_SHA: v1.0
+  PROJECT_ID: indu-1234 # Removed the hyphen before PROJECT_ID
+
+	
+  
+   
+	
